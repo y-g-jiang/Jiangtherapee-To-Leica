@@ -1,0 +1,7 @@
+# JTL native highlight recovery
+
+The production Windows DLL is the original, unmodified JTL `rt_highlights.dll` (SHA-256 `c976dab62761171503160aa2ee472f83317a59fca90878cb6106ab21ace0270a`). Its interface is `recover(HWC float32, width, height, 1, camera_wb, observed_channel_maxima, 1.0)`, in the 65535-scaled camera RGB domain. Method 1 calls RawTherapee 5.12 `HLRecovery_inpaint` with blur 0. The sample maxima are measured on the original visible RAW sites. Other entry points are not used by JTL.
+
+The original `adapter_manifest.json` is historical; its adapter checksum predates this portable source snapshot. The actual `rt_highlight_adapter.cpp` supplied alongside the historical Windows DLL has SHA-256 `a619d5c11d0dfba05e08d6b0ab77d75edfe7b70d27a40f5748d4ea46d1cf954e` (original Windows line endings). Original upstream `rt_hilite_recon.cc` SHA-256: `cc6da9e8c222aa0f79beb93e313ec60fdfeb2e64f874d3e2dc7c24d55dac40dc`. See `rt_License.txt` and the retained upstream sources.
+
+Windows (LLVM in a Visual Studio environment): `clang++ -std=c++17 -O2 -DNDEBUG -shared rt_highlight_adapter.cpp -o rt_highlights.dll`. On macOS `macos.cpp` only replaces the Windows symbol-export spelling. Compile with `clang++ -std=c++17 -O2 -DNDEBUG -dynamiclib macos.cpp -Wl,-install_name,@rpath/rt-highlights-arm64.dylib -o rt-highlights-arm64.dylib` (substitute x86_64 for an Intel build). Install the appropriate library alongside the other JTL assets. Cross builds use Zig 0.13 C++, target `aarch64-macos.13.3` or `x86_64-macos.13.3`, with `-fPIC -fno-sanitize=all`.

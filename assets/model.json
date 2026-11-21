@@ -1,0 +1,11 @@
+{
+  "analysis": 336,
+  "models": {
+    "classic.bin": "c22ced67b65940405856eaa423f3581ca1417c1da252582d951306e574846e51",
+    "landscape.onnx": "451f651785f2d3e56af319e6442fa99c768f60003561c553d0a02f89f06684f1",
+    "portrait.onnx": "6916abe3b5950e80b7a4aeb1f5a3c5a8e4101ccf3ff65c7fb7056c4fb0402f68",
+    "tile.onnx": "e1132ea3085a0a1b497c168145c10c505cfdc0fa94bd8e5e61fee17702c255f3",
+    "atlas.onnx": "32c339206edd537cea74390e302e68c4869e168ed2411b3783f3b12150246e4b"
+  },
+  "inspection": "ranges4-dino4-routing3-v1"
+}

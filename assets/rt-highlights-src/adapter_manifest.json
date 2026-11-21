@@ -1,0 +1,23 @@
+{
+  "upstream": "RawTherapee 5.12",
+  "license": "GPL-3.0-or-later",
+  "upstream_hilite_sha256": "cc6da9e8c222aa0f79beb93e313ec60fdfeb2e64f874d3e2dc7c24d55dac40dc",
+  "upstream_rawimagesource_sha256": "8a37db4519255b84215973131acddb16253e69999132c4292b1229fc48904cda",
+  "adapter_sha256": "c72700217ff17fb3377e3f82b7ace44347a75ff5d75b8d4bd46198f2daf73139",
+  "kernels": [
+    "HLRecovery_inpaint",
+    "highlight_recovery_opposed (derived by upstream from darktable)",
+    "HLRecovery_blend"
+  ],
+  "kernel_body_edits": [
+    "omitted 3 unreachable blur>0 branches; runtime always uses upstream default blur=0"
+  ],
+  "host_adapter": [
+    "camera white balance supplied directly; no ColorTemp estimation",
+    "zero-initialized array and mask storage",
+    "serial C++ path; no OpenMP or SSE",
+    "pow_F maps to standard std::pow",
+    "scale is float, source clip and maximum are supplied explicitly"
+  ],
+  "not_claimed": "bitwise-equivalent full RawTherapee pipeline; high-level demosaic, WB estimate, profiles and exposure are ours as previously fixed"
+}
