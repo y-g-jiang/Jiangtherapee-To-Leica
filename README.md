@@ -11,6 +11,13 @@ by 姜尧耕 · [y-g-jiang.github.io](https://y-g-jiang.github.io) · [支持作
 
 把照片拖进窗口，默认以「徕卡生动」显影。点「原图对比」，左边是原图，右边是当前成片；拖动中线检查同一处细节，再点「返回显影透视」。空格同样单击切换，不用按住。顶部可切换「徕卡经典」，右侧可调「光线」「颜色」或「曲线」。满意后点「处理全图」。两种风格均完全离线，不需要安装 darktable。
 
+<img width="1163" height="416" alt="image" src="https://github.com/user-attachments/assets/9fa240fa-0576-4b8a-947d-2cdf656b50f8" />
+
+<img width="2559" height="1439" alt="image" src="https://github.com/user-attachments/assets/9f090490-2615-4ad6-b5c0-abb7a72bc9c9" />
+
+<img width="963" height="409" alt="image" src="https://github.com/user-attachments/assets/79979a2e-7324-4da6-8fab-f669b95d7466" />
+
+
 - Windows：从 GitHub Releases 下载 Windows x64 单文件 EXE，双击即可运行。
 - 每次启动在后台检查 JTL 稳定版信号；只有发现更高版本才提醒，不会自动下载或安装。断网不影响显影，照片和文件名不会发送。每个本地自然月首次打开时会展示感谢弹窗；可以直接继续使用，之后当月不再出现。
 - Mac：按芯片选择版本，解压后将 `.app` 拖到「应用程序」。面向 macOS 13.3 或更高版本。此版本没有 Developer ID 签名及 Apple 公证，尚未在 Mac 真机运行验收；系统或组织策略可能阻止打开。无需安装 Python。
