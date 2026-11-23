@@ -1,4 +1,7 @@
 import os
+# Qt pool threads get a 512 KB stack on macOS; OpenBLAS's threaded LAPACK paths probe
+# more than that and fault. Keep BLAS single threaded before numpy is first imported.
+os.environ.setdefault('OPENBLAS_NUM_THREADS','1')
 import sys
 import threading
 import time

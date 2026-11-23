@@ -1,9 +1,11 @@
 {
+  "checkpoint": "6c93eeb6c7ec902de9aa9c77174dcb51e8f9339c92039c240c66f6855b7e39da",
+  "gallery_epoch": 23,
   "analysis": 336,
   "models": {
-    "classic.bin": "c22ced67b65940405856eaa423f3581ca1417c1da252582d951306e574846e51",
-    "landscape.onnx": "451f651785f2d3e56af319e6442fa99c768f60003561c553d0a02f89f06684f1",
-    "portrait.onnx": "6916abe3b5950e80b7a4aeb1f5a3c5a8e4101ccf3ff65c7fb7056c4fb0402f68",
+    "gallery.bin": "c22ced67b65940405856eaa423f3581ca1417c1da252582d951306e574846e51",
+    "landscape.onnx": "f1b5ab2b1533f8c935217f9acf0ac5b1f071dc6e8cc03e04b3be0d724ecc3d5c",
+    "portrait.onnx": "a92f486950a17211db4864a0ee26f0a988aee563f98957b85495df066a3dcb4b",
     "tile.onnx": "e1132ea3085a0a1b497c168145c10c505cfdc0fa94bd8e5e61fee17702c255f3",
     "atlas.onnx": "32c339206edd537cea74390e302e68c4869e168ed2411b3783f3b12150246e4b"
   },

@@ -10,6 +10,19 @@ import highlights
 SRGB_XYZ=np.array([[.4124564,.3575761,.1804375],[.2126729,.7151522,.0721750],[.0193339,.1191920,.9503041]])
 GRBG=np.array([[1,0],[2,1]])
 
+def determinant3(matrix):
+    # 3x3 determinant/inverse without LAPACK: np.linalg.det/inv reach OpenBLAS's
+    # parallel dgetrf, whose stack probe exceeds the 512 KB stack of a Qt pool
+    # thread and faults (SIGBUS) while a RAW is being opened.
+    (a,b,c),(d,e,f),(g,h,i)=matrix
+    return a*(e*i-f*h)-b*(d*i-f*g)+c*(d*h-e*g)
+
+def inverse3(matrix):
+    (a,b,c),(d,e,f),(g,h,i)=matrix
+    det=a*(e*i-f*h)-b*(d*i-f*g)+c*(d*h-e*g)
+    if not np.isfinite(det) or abs(det)<1e-12:raise ValueError('矩阵不可逆。')
+    return np.array([[e*i-f*h,c*h-b*i,b*f-c*e],[f*g-d*i,a*i-c*g,c*d-a*f],[d*h-e*g,b*g-a*h,a*e-b*d]],'d')/det
+
 @lru_cache(maxsize=1)
 def network():
     options=ort.SessionOptions();options.intra_op_num_threads=min(4,os.cpu_count() or 1);options.inter_op_num_threads=1;options.add_session_config_entry('session.intra_op.allow_spinning','0')
@@ -59,10 +72,10 @@ def read(raw,quick,cancelled,progress=None,quick_edge=640,speed=None,retain=None
     if not np.all(np.isfinite(wb[:3]) & (wb[:3]>0)):wb=np.asarray(raw.daylight_whitebalance,'f')
     if not np.all(np.isfinite(wb[:3]) & (wb[:3]>0)):raise ValueError('缺少可用的相机白平衡。')
     wb=wb/wb[1];wb[3]=wb[3] if np.isfinite(wb[3]) and wb[3]>0 else 1.;gain=float(wb.max());matrix=raw.color_matrix[:,:3].copy()
-    if not np.isfinite(matrix).all() or abs(np.linalg.det(matrix))<1e-6:
+    if not np.isfinite(matrix).all() or abs(determinant3(matrix))<1e-6:
         converted=raw.rgb_xyz_matrix[:3].astype('d')@SRGB_XYZ;normalized=converted/np.where(abs(converted.sum(1,keepdims=True))>1e-8,converted.sum(1,keepdims=True),1)
-        if not np.isfinite(normalized).all() or abs(np.linalg.det(normalized))<1e-6:raise ValueError('缺少可用的相机色彩矩阵。')
-        matrix=np.linalg.inv(normalized).astype('f')
+        if not np.isfinite(normalized).all() or abs(determinant3(normalized))<1e-6:raise ValueError('缺少可用的相机色彩矩阵。')
+        matrix=inverse3(normalized).astype('f')
     signal,observed=camera_mosaic(plane,pat,colors,black,white,wb,gain,cancelled)
     image=demosaic(signal,colors,gain,cancelled,progress=progress,speed=speed);del signal
     left,top,width,height=raw.visible_crop;left-=sizes.left_margin;top-=sizes.top_margin

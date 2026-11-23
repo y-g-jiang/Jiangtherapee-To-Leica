@@ -1,12 +1,15 @@
 {
+  "checkpoint": "d04255f27a995557e8284143027a9615934dd43ffa3f4c4013e0c32b547cb12d",
   "analysis": 504,
   "models": {
-    "landscape.onnx": "6ad96d0bf4feaa6fa59be4cb96685d96431b81e458e68d1c8625c4b394478f04",
-    "vivid2.bin": "8dacba4b86b3cc7a6e0babf0c47646b0d49558507d1ac621d5071794055dd329",
-    "portrait.onnx": "8118e72d734e5f92c0dacb8f0ca7310a8c04b3e207a337ca7e96c80d5281946f",
+    "landscape.onnx": "e55464749f0d9c93c04e54370c2f675ddaabc41de30efd50c45321ec7120c5af",
+    "paired.bin": "8dacba4b86b3cc7a6e0babf0c47646b0d49558507d1ac621d5071794055dd329",
+    "portrait.onnx": "0847f394502e5bc108e3cfe56afb40376ab876d67eaf8a3765d1a9e73fe0d44b",
     "tile.onnx": "587ec20865d15228a674a53998db9c4fa2264af32fe56436a8f8a6d691c0fe0b",
     "atlas.onnx": "fcbaa7e411c2480a59d6fb91bcd479209fdecaf2a4482974f742f23c4ae3a774"
   },
+  "encoder_sha256": "b938bf1bc15cd2ec0feacfe3a1bb553fe8ea9ca46a7e1d8d00217f29aef60cd9",
   "profile": "vivid",
+  "paired_updates": 152054,
   "inspection": "ranges4-dino4-routing3-v1"
 }
