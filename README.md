@@ -2,6 +2,11 @@
 
 by 姜尧耕 · [y-g-jiang.github.io](https://y-g-jiang.github.io) · [支持作者](https://github.com/y-g-jiang/Support_Me_QR_Code)
 
+<img width="1163" height="757" alt="image" src="https://github.com/user-attachments/assets/ff73c296-26a1-483b-8b7e-d6b1a6a9fea4" />
+
+<img width="2318" height="1460" alt="image" src="https://github.com/user-attachments/assets/82b5018d-b0e3-4a9e-a5db-771523c90e7d" />
+
+
 [下载 Windows 1.0.3](https://github.com/y-g-jiang/Jiangtherapee-To-Leica/releases/tag/v1.0.3) · [Android 版 JCam](https://github.com/y-g-jiang/Jiangtherapee-Cam/releases/tag/v0.14.0-beta) · [源码构建说明](SOURCE_BUILD.md)
 
 把照片拖进窗口，默认以「徕卡生动」显影。点「原图对比」，左边是原图，右边是当前成片；拖动中线检查同一处细节，再点「返回显影透视」。空格同样单击切换，不用按住。顶部可切换「徕卡经典」，右侧可调「光线」「颜色」或「曲线」。满意后点「处理全图」。两种风格均完全离线，不需要安装 darktable。
