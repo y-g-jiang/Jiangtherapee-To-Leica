@@ -4,6 +4,8 @@ by 姜尧耕 · [y-g-jiang.github.io](https://y-g-jiang.github.io) · [支持作
 
 说到自动修图，你们会想到什么？是LUT吗，可同一个 RGB 放在脸上还是墙上，一张固定的LUT都会给它同一个答案，这显然是远远不够的。更进一步，我们都知道，可以给脸画一张蒙版，把衣服和背景留在外面，而一些线上徕卡网站里的修图师则做得更多，他们会把人脸的黄色和院墙的黄色分开处理，他们知道如何调出有质感有层次的车漆的红和深沉的植物的绿，他们知道如何控制暗角和恰当地加强光影，那么我的Jiangtherapee To Leica网络学会的，正是修图师多做的这一步。
 
+太长不看版 训练方式：我先找了徕卡官方gallery的一大批图，然后做高敏感的杂乱的语义分割打乱每个物体上的光影和颜色，如此随机退化，最后往原图做恢复训练。打乱方式用小米官方网络的少量对作微调来加强退化精度。这样网络的语义层就会学习到徕卡修图师所偏好的精简的语义和relighting或者色彩倾向。
+
 <img width="1163" height="757" alt="image" src="https://github.com/user-attachments/assets/ff73c296-26a1-483b-8b7e-d6b1a6a9fea4" />
 
 <img width="2318" height="1460" alt="image" src="https://github.com/user-attachments/assets/82b5018d-b0e3-4a9e-a5db-771523c90e7d" />
