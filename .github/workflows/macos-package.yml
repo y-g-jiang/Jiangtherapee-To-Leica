@@ -1,0 +1,65 @@
+name: Package macOS arm64
+on: workflow_dispatch
+permissions:
+  contents: read
+
+jobs:
+  package:
+    runs-on: macos-15
+    timeout-minutes: 30
+    env:
+      QT_QPA_PLATFORM: offscreen
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.10'
+          architecture: arm64
+      - name: Restore verified inference resources
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(uname -m)" = arm64
+          cd "$RUNNER_TEMP"
+          curl --fail --location --retry 3 --output base.zip https://github.com/y-g-jiang/Jiangtherapee-To-Leica/releases/download/v1.0.3-macos-arm64/Jiangtherapee-to-Leica-1.0.3-macOS-arm64.zip
+          echo '28df8be2b79925969b3a8892d1e857ffc7f99ea0a5416bb7fef8195af382df24  base.zip' | shasum -a 256 -c -
+          ditto -x -k base.zip base
+          cd "$GITHUB_WORKSPACE"
+          python - <<'PY'
+          import hashlib, json, os, shutil
+          from pathlib import Path
+          base = Path(os.environ['RUNNER_TEMP']) / 'base'
+          source = next(base.glob('*.app/Contents/Resources/assets'))
+          for relative in (Path(''), Path('vivid')):
+              folder = Path('assets') / relative
+              expected = json.loads((folder / 'model.json').read_text())['models']
+              if relative == Path(''):
+                  expected['bayer.onnx'] = '0cb885f67d8d1fac3dc1ccc93b748275a7962ef22cd95259c6207a98b9e09e2f'
+              for name, digest in expected.items():
+                  original = source / relative / name
+                  if hashlib.sha256(original.read_bytes()).hexdigest() != digest:
+                      raise ValueError(f'Unexpected model: {original.name}')
+                  shutil.copyfile(original, folder / name)
+          PY
+      - name: Test, build and verify app
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -m pip install -r requirements.txt pyinstaller==6.16.0
+          python -m unittest discover -s tools -p 'test_*.py'
+          python tools/build_native.py
+          app='dist/Jiangtherapee to Leica.app'
+          version=$(python -c 'from release_info import VERSION; print(VERSION)')
+          test "$(/usr/libexec/PlistBuddy -c 'Print :CFBundleShortVersionString' "$app/Contents/Info.plist")" = "$version"
+          codesign --verify --deep --strict "$app"
+          "$app/Contents/MacOS/Jiangtherapee to Leica" --self-test "$PWD/dist/self-test-macOS-arm64.json"
+          python -c 'import json; assert json.load(open("dist/self-test-macOS-arm64.json"))["ok"] is True'
+          ditto -c -k --sequesterRsrc --keepParent "$app" "dist/Jiangtherapee-to-Leica-$version-macOS-arm64.zip"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: macOS-arm64
+          compression-level: 0
+          if-no-files-found: error
+          path: |
+            dist/*-macOS-arm64.zip
+            dist/self-test-macOS-arm64.json
