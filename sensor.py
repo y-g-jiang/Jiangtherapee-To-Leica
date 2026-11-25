@@ -60,7 +60,23 @@ def camera_mosaic(plane,pat,colors,black,white,wb,gain,cancelled):
     np.maximum(result,0,out=result);np.power(result,1/2.2,out=result);np.minimum(result,1,out=result)
     return result,observed
 
-def read(raw,quick,cancelled,progress=None,quick_edge=640,speed=None,retain=None):
+def clipping_cells(plane,pat,black,white,view,cancelled):
+    oriented=view(plane);height,width=oriented.shape
+    rows=view(np.broadcast_to(np.arange(plane.shape[0])[:,None],plane.shape))[:2,:2]%2
+    cols=view(np.broadcast_to(np.arange(plane.shape[1])[None,:],plane.shape))[:2,:2]%2
+    indices=pat[rows,cols];cells=np.zeros(((height+1)//2,(width+1)//2),'uint8')
+    for top in range(0,height//2,128):
+        if cancelled():raise InterruptedError('已取消')
+        bottom=min(top+128,height//2);level=np.ones((bottom-top,width//2),'f')
+        for row,col in np.ndindex(2,2):
+            index=indices[row,col];sites=oriented[2*top+row:2*bottom:2,col:width//2*2:2]
+            np.minimum(level,(sites-black[index])/(white[index]-black[index]),out=level)
+        level=np.clip((level-.97)/.025,0,1);cells[top:bottom,:width//2]=np.rint(255*level*level*(3-2*level))
+    if width%2 and width>1:cells[:,-1]=cells[:,-2]
+    if height%2 and height>1:cells[-1]=cells[-2]
+    return cells if cells.any() else None
+
+def read(raw,quick,cancelled,progress=None,quick_edge=640,speed=None,retain=None,retain_clipping=None):
     sizes=raw.sizes;pattern=raw.raw_pattern;desc=raw.color_desc.rstrip(b'\0')
     if pattern is None or pattern.shape!=(2,2) or desc not in (b'RGBG',b'RGB') or abs(sizes.pixel_aspect-1)>1e-4 or (sizes.iheight,sizes.iwidth)!=(sizes.height,sizes.width):return None
     plane=raw.raw_image_visible
@@ -79,11 +95,15 @@ def read(raw,quick,cancelled,progress=None,quick_edge=640,speed=None,retain=None
     signal,observed=camera_mosaic(plane,pat,colors,black,white,wb,gain,cancelled)
     image=demosaic(signal,colors,gain,cancelled,progress=progress,speed=speed);del signal
     left,top,width,height=raw.visible_crop;left-=sizes.left_margin;top-=sizes.top_margin
-    if width>0 and height>0 and 0<=left<=sizes.width-width and 0<=top<=sizes.height-height:image=image[top:top+height,left:left+width]
     flip=int(sizes.flip)
-    if flip&4:image=image.transpose(1,0,2)
-    if (flip & (1 if flip&4 else 2)):image=image[::-1]
-    if (flip & (2 if flip&4 else 1)):image=image[:,::-1]
+    def view(array):
+        if width>0 and height>0 and 0<=left<=sizes.width-width and 0<=top<=sizes.height-height:array=array[top:top+height,left:left+width]
+        if flip&4:array=array.swapaxes(0,1)
+        if flip & (1 if flip&4 else 2):array=array[::-1]
+        if flip & (2 if flip&4 else 1):array=array[:,::-1]
+        return array
+    if retain_clipping is not None:retain_clipping(clipping_cells(plane,pat,black,white,view,cancelled))
+    image=view(image)
     image=np.ascontiguousarray(image);highlights.recover(image,wb,observed,cancelled)
     if retain:retain(image,matrix)
     return to_working(image,matrix,quick_edge if quick else None,cancelled,inplace=retain is None)

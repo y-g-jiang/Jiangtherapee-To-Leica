@@ -16,6 +16,8 @@ python app.py --self-test self-test.json
 python app.py
 ```
 
+高光修订单独提供可重复的原片回归。若持有 Issue #1 附件，在 PowerShell 中设置 `$env:JTL_WINDOW_DNG` 为其中 DNG 的绝对路径，再运行 `python -m unittest discover -s tools -p "test_*.py"`。测试会检查原片哈希、两种风格的四档预览、全尺寸 TIFF/JPEG 的窗外天空；文件在临时目录生成，不会覆盖原片。未提供附件时只跳过这一项，合成亮度渐变、彩灯、曝光和 Bayer 饱和判断仍会测试。
+
 Windows x64 单文件构建（发布环境：CPython 3.10.11，PyInstaller 6.16.0）：
 
 ```text

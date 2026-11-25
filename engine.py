@@ -14,6 +14,7 @@ from PIL import Image, ImageCms, ImageOps
 import darkroom
 from full_speed import FullSpeed
 import sensor
+import scene_highlights as scene_hl
 import texture
 
 ASSETS = Path(__file__).resolve().parent / 'assets'
@@ -69,7 +70,8 @@ def pixels(path,quick,cancelled=lambda:False,progress=None,info=None,quick_edge=
         with raw_core.Reader(path) as raw:
             def retain(image,matrix):
                 info['edge']=max(image.shape[:2]);cached=cache_camera(image,cancelled);info['camera']=(cached,matrix) if cached is not None else None
-            arr=sensor.read(raw,quick,cancelled,progress,quick_edge,speed,retain if info is not None else None);bayer=arr is not None
+            def retain_clipping(cells):info['clipping']=cells
+            arr=sensor.read(raw,quick,cancelled,progress,quick_edge,speed,retain if info is not None else None,retain_clipping if info is not None else None);bayer=arr is not None
             if not bayer:arr=raw.process(quick and max(raw.sizes.height,raw.sizes.width)//2>=quick_edge)
             if info is not None:info.setdefault('edge',max(raw.sizes.height,raw.sizes.width));info['method']='BayerNet' if bayer else 'LibRaw'
         return arr,True
@@ -123,6 +125,8 @@ class Photo:
     detail:tuple=None
     camera:tuple=None
     preview_master:np.ndarray=None
+    clipping:np.ndarray=None
+    proxy_clipping:np.ndarray=None
 
 def load(path,cancelled=lambda:False):
     path=Path(path);stamp=signature(path);info={};raw=path.suffix.lower().lstrip('.') in RAW
@@ -136,7 +140,8 @@ def load(path,cancelled=lambda:False):
     image=cv2.copyMakeBorder(small,top,th-sh-top,left,tw-sw-left,cv2.BORDER_REPLICATE)
     if signature(path)!=stamp:raise ValueError('照片在读取时已改变，请重新打开。')
     master=arr if info.get('method')=='BayerNet' else None
-    return Photo(path,stamp,image,(slice(top,top+sh),slice(left,left+sw)),texture.source_iso(path),info.get('edge',max(height,width))/max(sw,sh),info.get('method','RGB'),camera=info.get('camera'),preview_master=master)
+    cells=info.get('clipping');proxy_clipping=scene_hl.preview_evidence(cells,(sw,sh))
+    return Photo(path,stamp,image,(slice(top,top+sh),slice(left,left+sw)),texture.source_iso(path),info.get('edge',max(height,width))/max(sw,sh),info.get('method','RGB'),camera=info.get('camera'),preview_master=master,clipping=cells,proxy_clipping=proxy_clipping)
 
 def prepare(rgb,grade,speed=None):return darkroom.apply(texture.chroma(rgb,grade.chroma,speed),grade)
 
@@ -191,8 +196,9 @@ class Engine:
         if rgb is None:rgb=prepare(photo.proxy,grade)
         key='landscape' if photo.proxy.shape[1]==512 else 'portrait'
         names=['graded_rgb','fine','prior','grid1','grid2'];extra=SIGNALS if inspect else []
-        out,fine,prior,grid1,grid2,*fields=self.session(key).run(names+extra,{'linear_rgb':nchw(rgb)})
-        clean=hwc(out)[photo.crop];signals=dict(zip(extra,fields)) if inspect else None
+        bounded,peak=scene_hl.model_input(rgb,photo.method=='BayerNet')
+        out,fine,prior,grid1,grid2,*fields=self.session(key).run(names+extra,{'linear_rgb':nchw(bounded)})
+        clean=scene_hl.finish(hwc(out)[photo.crop],rgb[photo.crop],None if peak is None else peak[photo.crop],photo.proxy_clipping);signals=dict(zip(extra,fields)) if inspect else None
         if inspect:signals['clean']=display(clean)
         return texture.grain_preview(clean,grade,photo.iso,photo.full_scale),(hwc(fine),hwc(prior),grid1,grid2),signals
 
@@ -200,8 +206,10 @@ class Engine:
         if options is not None and options.terminate:raise InterruptedError('已取消')
         rgb=prepare(photo.proxy,grade);key='landscape' if rgb.shape[1]==512 else 'portrait'
         if options is not None and options.terminate:raise InterruptedError('已取消')
-        rendered,fine,prior,grid1,grid2,*fields=self.session(key).run(['graded_rgb','fine','prior','grid1','grid2',*SIGNALS],{'linear_rgb':nchw(rgb)},options)
-        source=display(rgb[photo.crop]);codes=np.rint(np.clip(encode(hwc(rendered)[photo.crop]),0,1)*65535).astype('uint16')
+        bounded,peak=scene_hl.model_input(rgb,photo.method=='BayerNet')
+        rendered,fine,prior,grid1,grid2,*fields=self.session(key).run(['graded_rgb','fine','prior','grid1','grid2',*SIGNALS],{'linear_rgb':nchw(bounded)},options)
+        clean=scene_hl.finish(hwc(rendered)[photo.crop],rgb[photo.crop],None if peak is None else peak[photo.crop],photo.proxy_clipping)
+        source=display(rgb[photo.crop]);codes=np.rint(np.clip(encode(clean),0,1)*65535).astype('uint16')
         small=np.rint(codes/np.float32(257)).astype('uint8');return grade,small,(hwc(fine),hwc(prior),grid1,grid2),source,dict(zip(SIGNALS,fields),proxy_codes=codes)
 
     def render_preview(self,photo,scan,edge,cancelled,options=None):
@@ -219,6 +227,8 @@ class Engine:
     def tiles(self,photo,grade,controls,image,already,dest,progress,cancelled,tile=384,options=None,speed=None):
         fine,prior,grid1,grid2=controls
         height,width=image.shape[:2];ph,pw=photo.proxy.shape[:2];ys,xs=photo.crop
+        cells=photo.clipping
+        if cells is not None and height<=cells.shape[0] and width<=cells.shape[1]:cells=scene_hl.preview_evidence(cells,(width,height))
         sx=(xs.stop-xs.start)/width;sy=(ys.stop-ys.start)/height
         xmin=-round(xs.start/sx);ymin=-round(ys.start/sy)
         xmax=width+round((pw-xs.stop)/sx);ymax=height+round((ph-ys.stop)/sy)
@@ -233,12 +243,14 @@ class Engine:
                 xx=np.arange(first,last,dtype=np.int32);yy=np.arange(upper,lower,dtype=np.int32)
                 sample=image[upper:lower,first:last] if 0<=first and last<=width and 0<=upper and lower<=height else image[yy.clip(0,height-1)[:,None],xx.clip(0,width-1)[None,:]]
                 source=prepare(linear(sample,already),grade,speed)
+                bounded,peak=scene_hl.model_input(source,photo.method=='BayerNet')
                 px=(xs.start+(xx.astype('f')+.5)*sx)/pw;py=(ys.start+(yy.astype('f')+.5)*sy)/ph
                 pos=np.empty((1,len(yy),len(xx),2),dtype='f');pos[0,:,:,0]=2*(px-.5*sx/pw)-1;pos[0,:,:,1]=(2*(py-.5*sy/ph)-1)[:,None]
-                inputs=dict(source=nchw(source),grid1=grid1,grid2=grid2,position=pos);result=None
+                inputs=dict(source=nchw(bounded),grid1=grid1,grid2=grid2,position=pos);result=None
                 if maps and speed.available(atlas):result=speed.run(atlas,dict(inputs,**maps,uv_x=px,uv_y=py))
                 if result is None:result=self.session('tile').run(None,dict(inputs,fine=nchw(sample_map(fine,px,py)),prior=nchw(sample_map(prior,px,py))),options)[0]
-                central=result[0,:,top-upper:bottom-upper,left-first:right-first].transpose(1,2,0)
+                region=(slice(top-upper,bottom-upper),slice(left-first,right-first));central=result[0].transpose(1,2,0)[region]
+                if peak is not None or cells is not None:central=scene_hl.finish(central,source[region],None if peak is None else peak[region],scene_hl.tile_evidence(cells,width,height,left,top,right,bottom))
                 dest[top:bottom,left:right]=np.rint(np.clip(encode(central),0,1)*65535).astype('uint16')
                 count+=1;progress(count,total)
 
