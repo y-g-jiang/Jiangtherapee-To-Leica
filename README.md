@@ -1,4 +1,4 @@
-# Jiangtherapee to Leica V1.0.3 a Leica-look CNN Trained on Leica Gallery Pictures
+# Jiangtherapee to Leica V1.0.4 a Leica-look CNN Trained on Leica Gallery Pictures
 
 by 姜尧耕 · [y-g-jiang.github.io](https://y-g-jiang.github.io) · [支持作者](https://github.com/y-g-jiang/Support_Me_QR_Code)
 
@@ -11,7 +11,7 @@ by 姜尧耕 · [y-g-jiang.github.io](https://y-g-jiang.github.io) · [支持作
 <img width="2318" height="1460" alt="image" src="https://github.com/user-attachments/assets/82b5018d-b0e3-4a9e-a5db-771523c90e7d" />
 
 
-[下载 Windows 1.0.3](https://github.com/y-g-jiang/Jiangtherapee-To-Leica/releases/tag/v1.0.3) · [Android 版 JCam](https://github.com/y-g-jiang/Jiangtherapee-Cam/releases/tag/v0.14.0-beta) · [源码构建说明](SOURCE_BUILD.md)
+[下载桌面版 V1.0.4](https://github.com/y-g-jiang/Jiangtherapee-To-Leica/releases/tag/v1.0.4) · [Android 版 JCam](https://github.com/y-g-jiang/Jiangtherapee-Cam/releases/tag/v0.14.0-beta) · [源码构建说明](SOURCE_BUILD.md)
 
 把照片拖进窗口，默认以「徕卡生动」显影。点「原图对比」，左边是原图，右边是当前成片；拖动中线检查同一处细节，再点「返回显影透视」。空格同样单击切换，不用按住。顶部可切换「徕卡经典」，右侧可调「光线」「颜色」或「曲线」。满意后点「处理全图」。两种风格均完全离线，不需要安装 darktable。
 
@@ -27,7 +27,7 @@ by 姜尧耕 · [y-g-jiang.github.io](https://y-g-jiang.github.io) · [支持作
 
 - Windows：从 GitHub Releases 下载 Windows x64 单文件 EXE，双击即可运行。
 - 每次启动在后台检查 JTL 稳定版信号；只有发现更高版本才提醒，不会自动下载或安装。断网不影响显影，照片和文件名不会发送。每个本地自然月首次打开时会展示感谢弹窗；可以直接继续使用，之后当月不再出现。
-- Mac：按芯片选择版本，解压后将 `.app` 拖到「应用程序」。面向 macOS 13.3 或更高版本。此版本没有 Developer ID 签名及 Apple 公证，尚未在 Mac 真机运行验收；系统或组织策略可能阻止打开。无需安装 Python。
+- Mac：Apple 芯片请选择 `macOS-arm64.zip`，解压后将 `.app` 拖到「应用程序」。面向 macOS 13.3 或更高版本，无需安装 Python。此版本未经 Apple 公证，系统或组织策略可能阻止打开。
 - 接受 JPEG、PNG、TIFF，以及 LibRaw 能解码的相机 RAW（包括部分 DNG、CR2/CR3、NEF、RAF、ARW 等；并非每一型号或压缩格式都支持）。RAW 用相机白平衡和线性 sRGB 解码；普通照片转换到 sRGB，应用方向信息。
 - 拖滑杆或曲线时照片停在上一帧，只更新数值和控件。松手 0.5 秒后才开始显影；键盘连续微调从最后一次变化起计时。降彩噪、影调和颜色在调色之前，颗粒在最后加入。
 - 点「处理全图」，固定同时保存全尺寸 16 位 TIFF 和质量 80 的 JPEG。两张来自同一次显影，颗粒相同，均嵌入 sRGB ICC；不复制 GPS 或透明通道。默认在原片旁，以 `原名-Leica-Vivid` 或 `原名-Leica-Classic` 为名；任一后缀重名，两张一起加编号，不覆盖旧图。可选择输出文件夹，取消或保存失败不留下半套成片。
@@ -59,7 +59,7 @@ Bayer RAW 沿用原 JTL 的 RawTherapee 5.12 颜色传播（HLRecovery_inpaint�
 - 「M9 颗粒」沿用原 JTL 配方：关闭、轻柔（0.55×）、标准（1×，默认）、浓郁（1.4×）。可跟随原片拍摄 ISO（读不到使用 400）或选 14 个 ISO 档，范围 80–2500。曲线来自 darktable `90d6c8c:data/noiseprofiles.json` 的 Leica M9 绿色通道；与亮度有关的单色噪声、空间相关性、色域限制和随机种子均沿用之前的实现。它是实测噪声曲线的模拟，不是 M9 相机软件。
 - 标准 Bayer RAW 首次打开要完成原尺寸解拜尔和整图高光恢复；切预览分辨率、调滑杆和换风格不会重做。大图的恢复结果只在本地临时缓存，关闭文件后释放；临时空间不足时仍可预览，导出才重新计算。导出使用相机默认有效裁幅（无有效裁幅时使用可见区域），不放大预览。判断颗粒请看全尺寸 TIFF 的 100% 视图。
 
-源码修订（尚未包含在 V1.0.3 安装包中）：影调调整仍使用有高光余量的线性 RGB。送入两种风格前，按 RGB 最大通道施加连续的亮部曲线，保持通道比例并将 Bayer 输入限制到模型的训练范围。在显示白以上的一档中逐步退出模型调色，回到保留原始色相的亮部曲线。只有 Bayer 的红、蓝和两处绿在扣黑后都接近本通道饱和、且恢复结果本来就接近中性时，才进一步收敛到中性。原图对比不应用风格边界；各级预览、整图导出都使用同一个变换。这里保护的是颜色和亮度过渡，不是恢复已丢失的纹理。
+V1.0.4 高光修复：影调调整仍使用有高光余量的线性 RGB。送入两种风格前，按 RGB 最大通道施加连续的亮部曲线，保持通道比例并将 Bayer 输入限制到模型的训练范围。在显示白以上的一档中逐步退出模型调色，回到保留原始色相的亮部曲线。只有 Bayer 的红、蓝和两处绿在扣黑后都接近本通道饱和、且恢复结果本来就接近中性时，才进一步收敛到中性。原图对比不应用风格边界；各级预览、整图导出都使用同一个变换。这里保护的是颜色和亮度过渡，不是恢复已丢失的纹理。
 
 ## 两套风格
 

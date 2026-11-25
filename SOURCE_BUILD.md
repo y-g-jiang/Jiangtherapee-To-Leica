@@ -1,10 +1,10 @@
-# Jiangtherapee to Leica 1.0.3 · 源码交付
+# Jiangtherapee to Leica 1.0.4 · 源码交付
 
 Windows 建议解压到短路径（如 `C:\JTL-src`），避免路径过长导致部分解压工具报错。
 
 `app.py` 是桌面程序入口。`assets/` 提供原生组件、字体和图标，`assets/*-src/` 提供 LibRaw 桥、darktable 调色和 RawTherapee 高光恢复的 C/C++ 源码。第三方许可在 `notices/` 及各组件目录，开发工具和测试在 `tools/`。
 
-直接使用 Windows 程序请从[本版 Release](https://github.com/y-g-jiang/Jiangtherapee-To-Leica/releases/tag/v1.0.3) 下载 EXE。若要从源码运行完整显影或打包，请先准备有权使用的 1.0.3 推理资源。将 `assets/model.json` 中 `models` 所列文件放入 `assets/`，将 `assets/vivid/model.json` 所列文件放入 `assets/vivid/`，逐个核对清单中的 SHA-256。Bayer RAW 解马赛克还需 `assets/bayer.onnx`，SHA-256 为 `0cb885f67d8d1fac3dc1ccc93b748275a7962ef22cd95259c6207a98b9e09e2f`。公开源码包保留两份风格资源清单。
+直接使用桌面程序请从[本版 Release](https://github.com/y-g-jiang/Jiangtherapee-To-Leica/releases/tag/v1.0.4) 下载对应平台的包。本次沿用 1.0.3 推理资源。将 `assets/model.json` 中 `models` 所列文件放入 `assets/`，将 `assets/vivid/model.json` 所列文件放入 `assets/vivid/`，逐个核对清单中的 SHA-256。Bayer RAW 解马赛克还需 `assets/bayer.onnx`，SHA-256 为 `0cb885f67d8d1fac3dc1ccc93b748275a7962ef22cd95259c6207a98b9e09e2f`。公开源码包保留两份风格资源清单。
 
 ## 运行、验证和构建
 
@@ -26,7 +26,7 @@ python -m PyInstaller --noconfirm tools/windows_release.spec
 python tools/make_update_signal.py dist
 ```
 
-成品在 `dist/`。Windows 自检：运行 `dist\Jiangtherapee-to-Leica-1.0.3-Windows-x64.exe --self-test exe-test.json`，待报告写完后确认 `ok` 为 `true`。重打包的二进制文件不保证与官方发布具有相同哈希。macOS 使用目标芯片的 Python 安装桌面依赖及上述版本的 PyInstaller 后执行 `python tools/build_native.py`。本次正式发布和真机验收仅针对 Windows x64。
+成品在 `dist/`。Windows 自检：运行 `dist\Jiangtherapee-to-Leica-1.0.4-Windows-x64.exe --self-test exe-test.json`，待报告写完后确认 `ok` 为 `true`。重打包的二进制文件不保证与官方发布具有相同哈希。Apple 芯片 Mac 使用原生 arm64 Python 安装桌面依赖及上述版本的 PyInstaller 后执行 `python tools/build_native.py`；也可手动运行仓库的 `Package macOS arm64` 工作流，校验权重、签名和冻结版自检后生成 ZIP。
 
 `assets/vivid/model.json` 和 `assets/model.json` 记录推理网络的文件 SHA-256。`SHA256SUMS.txt` 列出包内各文件的 SHA-256（清单自身除外）。
 
