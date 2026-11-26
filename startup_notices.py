@@ -8,15 +8,19 @@ from PySide6.QtNetwork import QNetworkAccessManager,QNetworkReply,QNetworkReques
 from PySide6.QtWidgets import QApplication,QDialog,QHBoxLayout,QLabel,QPushButton,QVBoxLayout
 
 from release_info import LIMIT,PRODUCT,REPOSITORY,SIGNAL_URL,SUPPORT_URL,VERSION,read_signal,version_tuple
+from repository_star import RepositoryStar,StarButton
 
 
-def claim_month(directory,today):
+def claim_notice(directory,today):
     directory=Path(directory);directory.mkdir(parents=True,exist_ok=True)
     database=sqlite3.connect(str(directory/'startup.sqlite3'),timeout=.1)
     try:
         with database:
+            database.execute('BEGIN IMMEDIATE')
             database.execute('CREATE TABLE IF NOT EXISTS thanks (month TEXT PRIMARY KEY)')
-            return database.execute('INSERT OR IGNORE INTO thanks VALUES (?)',(today.strftime('%Y-%m'),)).rowcount==1
+            returning=database.execute('SELECT 1 FROM thanks LIMIT 1').fetchone()
+            if database.execute('INSERT OR IGNORE INTO thanks VALUES (?)',(today.strftime('%Y-%m'),)).rowcount:
+                return 'monthly' if returning else 'first'
     finally:database.close()
 
 
@@ -56,6 +60,7 @@ class UpdateCheck(QObject):
 class StartupNotices(QObject):
     def __init__(self,window,directory=None,clock=date.today,checker=None,opener=QDesktopServices.openUrl):
         super().__init__(window);self.window=window;self.clock=clock;self.opener=opener
+        self.stars=RepositoryStar(window,opener)
         self.directory=directory if directory is not None else Path(QStandardPaths.writableLocation(QStandardPaths.GenericDataLocation))/'JiangtherapeeToLeica'
         self.checker=checker if checker is not None else UpdateCheck(self);self.checker.checked.connect(self.received)
         self.wake=QTimer(self);self.wake.setSingleShot(True);self.wake.timeout.connect(self.drain)
@@ -66,7 +71,8 @@ class StartupNotices(QObject):
         self.started=True;self.wake.start(0);self.checker.start()
 
     def stop(self):
-        self.stopped=True;self.wake.stop();self.checker.cancel()
+        self.stopped=True;self.wake.stop();self.checker.cancel();self.stars.stop()
+        if self.active is not None:self.active.reject()
 
     def received(self,version):
         if not self.stopped and version and version_tuple(version)>version_tuple(VERSION):
@@ -77,21 +83,25 @@ class StartupNotices(QObject):
         if not self.window.isVisible() or self.window.isMinimized() or self.window.exporting or self.window.active or QApplication.activeModalWidget():self.wake.start(500);return
         if self.month_pending:
             self.month_pending=False
-            try:display=claim_month(self.directory,self.clock())
+            try:display=claim_notice(self.directory,self.clock())
             except (OSError,sqlite3.Error):display=False
             if display:
-                self.present('感谢使用 Jiangtherapee to Leica','感谢你用 JTL 显影照片。\n如果喜欢它，欢迎支持后续开发。','支持作者',SUPPORT_URL,'继续使用');return
+                body='感谢你用 JTL 显影照片。\n如果喜欢它，欢迎支持后续开发。'
+                if display=='first':body+='点击 Star 会用本机已登录的账号给项目加星。'
+                self.present('感谢使用 Jiangtherapee to Leica',body,'支持作者',SUPPORT_URL,'继续使用',star=display=='first');return
         if self.newer:
             version=self.newer;self.newer=None
             self.present(f'发现新版本 V{version}',f'你正在使用 V{VERSION}。可以前往 GitHub 下载新版，也可以继续使用当前版本。','查看新版',f'{REPOSITORY}/releases/tag/v{version}','稍后再说')
 
-    def present(self,title,body,action,url,dismiss):
+    def present(self,title,body,action,url,dismiss,star=False):
         dialog=QDialog(self.window);self.active=dialog;dialog.setWindowTitle(PRODUCT);dialog.setWindowModality(Qt.WindowModal);dialog.setMinimumWidth(380)
         layout=QVBoxLayout(dialog);layout.setContentsMargins(24,21,24,19);layout.setSpacing(14)
         heading=QLabel(title);heading.setTextFormat(Qt.PlainText);heading.setObjectName('title');layout.addWidget(heading)
         message=QLabel(body);message.setTextFormat(Qt.PlainText);message.setWordWrap(True);layout.addWidget(message)
         row=QHBoxLayout();row.addStretch();later=QPushButton(dismiss);later.setDefault(True);later.clicked.connect(dialog.reject);row.addWidget(later)
-        visit=QPushButton(action);visit.setObjectName('primary');visit.setAutoDefault(False);visit.clicked.connect(lambda:self.visit(dialog,url));row.addWidget(visit);layout.addLayout(row)
+        visit=QPushButton(action);visit.setObjectName('primary');visit.setAutoDefault(False);visit.clicked.connect(lambda:self.visit(dialog,url));row.addWidget(visit)
+        if star:row.addWidget(StarButton(self.stars))
+        layout.addLayout(row)
         dialog.finished.connect(self.dismissed);dialog.open();later.setFocus()
 
     def visit(self,dialog,url):

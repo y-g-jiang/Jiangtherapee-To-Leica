@@ -40,8 +40,8 @@ class StartupTest(unittest.TestCase):
 
     def test_concurrent_month_claim(self):
         with tempfile.TemporaryDirectory() as directory,ThreadPoolExecutor(4) as pool:
-            self.assertEqual(sum(pool.map(lambda _:notices.claim_month(directory,date(2026,12,1)),range(8))),1)
-            self.assertTrue(notices.claim_month(directory,date(2027,1,1)));self.assertFalse(notices.claim_month(directory,date(2026,12,31)))
+            self.assertCountEqual(pool.map(lambda _:notices.claim_notice(directory,date(2026,12,1)),range(8)),['first']+[None]*7)
+            self.assertEqual(notices.claim_notice(directory,date(2027,1,1)),'monthly');self.assertIsNone(notices.claim_notice(directory,date(2026,12,31)))
 
     def test_startup_sequence(self):
         with tempfile.TemporaryDirectory() as directory:

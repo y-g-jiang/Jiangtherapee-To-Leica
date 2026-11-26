@@ -14,6 +14,7 @@ import inspection as scope
 from grade_ui import Controls
 from release_info import PRODUCT,SUPPORT_URL,VERSION
 from startup_notices import StartupNotices
+from repository_star import StarButton
 
 NAME=f'{PRODUCT} V{VERSION}'
 WEBSITE='https://y-g-jiang.github.io'
@@ -160,6 +161,7 @@ class Window(QMainWindow):
         for key,name in eng.PROFILES.items():
             look=QPushButton(name);look.setObjectName('look');look.setAccessibleName(name);look.setCheckable(True);look.setCursor(Qt.PointingHandCursor);self.look_group.addButton(look);look.setChecked(key==self.engine.profile);look.clicked.connect(lambda checked,profile=key:self.select_profile(profile));row.addWidget(look);self.looks[key]=look
         bar.addWidget(selector);bar.addSpacing(6);self.support=button('支持作者',lambda:QDesktopServices.openUrl(QUrl(SUPPORT)));bar.addWidget(self.support)
+        self.notices=StartupNotices(self);self.star=StarButton(self.notices.stars);bar.addWidget(self.star)
         self.open_btn=button('打开照片…',self.pick);bar.addWidget(self.open_btn);v.addWidget(top)
         body=QHBoxLayout();body.setSpacing(0);v.addLayout(body,1);workspace=QWidget();wl=QVBoxLayout(workspace);wl.setContentsMargins(0,0,0,0);wl.setSpacing(0);body.addWidget(workspace,1)
         header=QHBoxLayout();header.setContentsMargins(24,8,18,8);self.file_label=label('照片预览');self.file_label.setSizePolicy(QSizePolicy.Ignored,QSizePolicy.Preferred);header.addWidget(self.file_label,1);self.compare=QPushButton('原图对比');self.compare.setCursor(Qt.PointingHandCursor);self.compare.setCheckable(True);self.compare.setFixedWidth(112);self.compare.setToolTip('切换左右对比（空格）');self.compare.toggled.connect(self.set_comparison);header.addWidget(self.compare);wl.addLayout(header)
@@ -372,9 +374,10 @@ def main():
         from check_app import run
         return run(sys.argv[2])
     app=QApplication(sys.argv);app.setApplicationName(NAME);appearance(app)
-    window=Window();window.show();window.notices=StartupNotices(window)
+    window=Window();window.show()
     if len(sys.argv)>1 and Path(sys.argv[1]).is_file():QTimer.singleShot(0,lambda:window.open_photo(sys.argv[1]))
     QTimer.singleShot(0,window.notices.start)
+    QTimer.singleShot(0,lambda:window.notices.stars.start(background=True))
     return app.exec()
 
 if __name__=='__main__':sys.exit(main())

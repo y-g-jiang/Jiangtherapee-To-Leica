@@ -8,6 +8,14 @@ Windows 建议解压到短路径（如 `C:\JTL-src`），避免路径过长导�
 
 ## 运行、验证和构建
 
+两种风格均在高光恢复之后、M9 颗粒之前处理。徕卡生动调用 `vivid_refinement.py`，在模型分析尺寸比较当前影调处理后的原图与网络输出，逐通道拟合局部反差增益，再提取与 16 像素模型周期同相的残差。原图中已有的周期纹理、明显结构、全分辨率细节以及高光保护区都会限制修正。默认允许部分网纹残留，每通道最大修正约为 8 位色阶的 1.5 级。每个 64 × 64 分析像素对应的成片区域内，颗粒前的 16 位 RGB 各通道总量分别守恒。两套主模型均使用基础包的权重。
+
+徕卡经典通过 `flat_refinement.py` 从原片经当前影调处理后的 RGB 计算两种尺度的纹理强度，用轻量门控估计平坦程度。`tools/fit_flat_gate.py` 用固定随机种子生成带噪渐变和纹理样本，复现经典模式的门控参数。以下成对交换内核用于经典模式。
+
+修正以成对交换的方式处理 16 位 sRGB 调色量，分别保存每个连通区域的 R、G、B 总和。全尺寸处理按有效预览区的比例调整采样距离，跨渲染分块连续计算。超过内存阈值的引导数据会写入临时文件，全图导出临时空间额外需要每像素 7 字节。区域守恒针对加颗粒和 JPEG 压缩之前的 16 位结果。可运行 `python -m unittest discover -s tools -p test_flat_refinement.py` 验证纯灰、渐变、纹理边界、预览及全图输出。
+
+整数交换内核的完整源码在 `assets/flat-src/exchange.c`。Windows x64 可以用 `zig cc -O3 -shared -s -target x86_64-windows-gnu assets/flat-src/exchange.c -o assets/jtl-flat-win.dll` 重建。在 Mac 上可执行 `clang -O3 -dynamiclib assets/flat-src/exchange.c -o "assets/jtl-flat-$(uname -m).dylib"`。测试会逐值对比原生内核与 NumPy 参考实现。
+
 在解压后的本目录，以 64 位 Python 3.10 创建并激活虚拟环境：
 
 ```text

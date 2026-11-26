@@ -8,7 +8,7 @@ sys.path.insert(0, str(root))
 from release_info import VERSION, windows_asset
 assets = root / 'assets'
 inputs = ['app.ico', 'atlas.onnx', 'bayer.onnx', 'gallery.bin', 'Interface.ttf',
-          'jtl-darkroom-win.dll', 'jtl-libraw-win.dll', 'landscape.onnx', 'model.json',
+          'jtl-darkroom-win.dll', 'jtl-flat-win.dll', 'jtl-libraw-win.dll', 'landscape.onnx', 'model.json',
           'portrait.onnx', 'rt_highlights.dll', 'tile.onnx']
 data = [(str(assets / name), 'assets') for name in inputs]
 data += [(str(assets / 'vivid'), 'assets/vivid'), (str(root / 'notices'), 'notices')]

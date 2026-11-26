@@ -12,6 +12,8 @@ import raw_core
 import tifffile
 from PIL import Image, ImageCms, ImageOps
 import darkroom
+import flat_refinement
+import vivid_refinement
 from full_speed import FullSpeed
 import sensor
 import scene_highlights as scene_hl
@@ -31,6 +33,15 @@ def decode(rgb):
 
 def display(rgb):
     return np.ascontiguousarray(np.rint(255*np.clip(encode(rgb),0,1)).astype('uint8'))
+
+def codes16(linear_rgb):
+    return np.rint(np.clip(encode(linear_rgb),0,1)*65535).astype(np.uint16)
+
+def refinement_mask(source,evidence):
+    allowed = np.max(source,axis=2) <= 1
+    if evidence is not None:
+        allowed &= evidence == 0
+    return allowed.astype(np.uint8)*255
 
 def signature(path):
     stat=path.stat()
@@ -177,6 +188,7 @@ class Engine:
     def __init__(self,profile=DEFAULT_PROFILE):
         if profile not in PROFILES:raise ValueError(profile)
         self.profile=profile
+        self.refinement = vivid_refinement if profile == 'vivid' else flat_refinement
         self.folder=ASSETS/'vivid' if profile=='vivid' else ASSETS
         self.sessions={}
 
@@ -193,24 +205,28 @@ class Engine:
         return preview,controls
 
     def preview_pass(self,photo,grade,inspect,rgb=None):
+        codes,controls,signals,_=self._proxy(photo,grade,inspect,rgb)
+        if inspect:signals['clean']=np.rint(codes/np.float32(257)).astype('uint8')
+        return texture.preview_codes(codes,grade,photo.iso,photo.full_scale),controls,signals
+
+    def _proxy(self,photo,grade,inspect,rgb=None,options=None):
+        def cancelled():return options is not None and options.terminate
+        flat_refinement.check_cancelled(cancelled)
         if rgb is None:rgb=prepare(photo.proxy,grade)
         key='landscape' if photo.proxy.shape[1]==512 else 'portrait'
         names=['graded_rgb','fine','prior','grid1','grid2'];extra=SIGNALS if inspect else []
         bounded,peak=scene_hl.model_input(rgb,photo.method=='BayerNet')
-        out,fine,prior,grid1,grid2,*fields=self.session(key).run(names+extra,{'linear_rgb':nchw(bounded)})
-        clean=scene_hl.finish(hwc(out)[photo.crop],rgb[photo.crop],None if peak is None else peak[photo.crop],photo.proxy_clipping);signals=dict(zip(extra,fields)) if inspect else None
-        if inspect:signals['clean']=display(clean)
-        return texture.grain_preview(clean,grade,photo.iso,photo.full_scale),(hwc(fine),hwc(prior),grid1,grid2),signals
+        out,fine,prior,grid1,grid2,*fields=self.session(key).run(names+extra,{'linear_rgb':nchw(bounded)},options)
+        source=rgb[photo.crop]
+        clean=scene_hl.finish(hwc(out)[photo.crop],source,None if peak is None else peak[photo.crop],photo.proxy_clipping)
+        codes=codes16(clean)
+        self.refinement.refine(codes,codes16(source),refinement_mask(source,photo.proxy_clipping),source.shape[:2],cancelled)
+        return codes,(hwc(fine),hwc(prior),grid1,grid2),dict(zip(extra,fields)) if inspect else None,source
 
     def analyze_preview(self,photo,grade,options=None):
-        if options is not None and options.terminate:raise InterruptedError('已取消')
-        rgb=prepare(photo.proxy,grade);key='landscape' if rgb.shape[1]==512 else 'portrait'
-        if options is not None and options.terminate:raise InterruptedError('已取消')
-        bounded,peak=scene_hl.model_input(rgb,photo.method=='BayerNet')
-        rendered,fine,prior,grid1,grid2,*fields=self.session(key).run(['graded_rgb','fine','prior','grid1','grid2',*SIGNALS],{'linear_rgb':nchw(bounded)},options)
-        clean=scene_hl.finish(hwc(rendered)[photo.crop],rgb[photo.crop],None if peak is None else peak[photo.crop],photo.proxy_clipping)
-        source=display(rgb[photo.crop]);codes=np.rint(np.clip(encode(clean),0,1)*65535).astype('uint16')
-        small=np.rint(codes/np.float32(257)).astype('uint8');return grade,small,(hwc(fine),hwc(prior),grid1,grid2),source,dict(zip(SIGNALS,fields),proxy_codes=codes)
+        codes,controls,fields,source=self._proxy(photo,grade,True,options=options)
+        small=np.rint(codes/np.float32(257)).astype('uint8')
+        return grade,small,controls,display(source),dict(fields,proxy_codes=codes)
 
     def render_preview(self,photo,scan,edge,cancelled,options=None):
         if cancelled():raise InterruptedError('已取消')
@@ -224,7 +240,12 @@ class Engine:
         view=texture.preview_codes(codes,grade,photo.iso,native_edge/max(height,width));small=cv2.resize(view,base_size,interpolation=method)
         return (grade,small,controls,source,dict(fields,clean=np.rint(clean/257.).astype('uint8'))),edge,view,display(image)
 
-    def tiles(self,photo,grade,controls,image,already,dest,progress,cancelled,tile=384,options=None,speed=None):
+    def tiles(self,photo,grade,controls,image,already,dest,progress,cancelled,tile=384,options=None,speed=None,scratch=None):
+        with flat_refinement.guides(dest.shape[:2],scratch) as (guide,gate):
+            self._render_tiles(photo,grade,controls,image,already,dest,lambda done,total:progress(90*done,100*total),cancelled,tile,options,speed,guide,gate)
+            self.refinement.refine(dest,guide,gate,photo.proxy[photo.crop].shape[:2],cancelled,lambda done,total:progress(90*total+10*done,100*total))
+
+    def _render_tiles(self,photo,grade,controls,image,already,dest,progress,cancelled,tile,options,speed,guide,gate):
         fine,prior,grid1,grid2=controls
         height,width=image.shape[:2];ph,pw=photo.proxy.shape[:2];ys,xs=photo.crop
         cells=photo.clipping
@@ -250,8 +271,11 @@ class Engine:
                 if maps and speed.available(atlas):result=speed.run(atlas,dict(inputs,**maps,uv_x=px,uv_y=py))
                 if result is None:result=self.session('tile').run(None,dict(inputs,fine=nchw(sample_map(fine,px,py)),prior=nchw(sample_map(prior,px,py))),options)[0]
                 region=(slice(top-upper,bottom-upper),slice(left-first,right-first));central=result[0].transpose(1,2,0)[region]
-                if peak is not None or cells is not None:central=scene_hl.finish(central,source[region],None if peak is None else peak[region],scene_hl.tile_evidence(cells,width,height,left,top,right,bottom))
-                dest[top:bottom,left:right]=np.rint(np.clip(encode(central),0,1)*65535).astype('uint16')
+                evidence=scene_hl.tile_evidence(cells,width,height,left,top,right,bottom)
+                if peak is not None or evidence is not None:central=scene_hl.finish(central,source[region],None if peak is None else peak[region],evidence)
+                dest[top:bottom,left:right]=codes16(central)
+                guide[top:bottom,left:right]=codes16(source[region])
+                gate[top:bottom,left:right]=refinement_mask(source[region],evidence)
                 count+=1;progress(count,total)
 
 def sample_map(field,px,py):
@@ -275,7 +299,7 @@ def export(engine,photo,grade,controls,directory,progress,cancelled):
         temp=Path(scratch)/'render.tif';jpeg=temp.with_suffix('.jpg')
         dest=tifffile.memmap(temp,shape=(height,width,3),dtype='uint16',photometric='rgb',metadata=None,extratags=[(34675,7,len(profile),profile,False)])
         try:
-            engine.tiles(photo,grade,controls,image,already,dest,lambda done,total:progress(front+round((finish-front)*done/total),100),cancelled,speed=speed)
+            engine.tiles(photo,grade,controls,image,already,dest,lambda done,total:progress(front+round((finish-front)*done/total),100),cancelled,speed=speed,scratch=scratch)
             del image
             if grade.grain:
                 top=0

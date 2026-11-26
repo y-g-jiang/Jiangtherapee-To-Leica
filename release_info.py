@@ -1,7 +1,7 @@
 import json
 import re
 
-VERSION='1.0.4'
+VERSION='1.0.5'
 PRODUCT='Jiangtherapee to Leica'
 REPOSITORY='https://github.com/y-g-jiang/Jiangtherapee-To-Leica'
 SIGNAL_URL=REPOSITORY+'/releases/latest/download/jtl-update.json'
