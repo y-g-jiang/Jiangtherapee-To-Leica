@@ -1,4 +1,4 @@
-# Jiangtherapee to Leica V1.0.4 a Leica-look CNN Trained on Leica Gallery Pictures
+# Jiangtherapee to Leica V1.0.4 a LFI-Gallery-look CNN Trained on Leica Gallery Pictures
 
 by 姜尧耕 · [y-g-jiang.github.io](https://y-g-jiang.github.io) · [支持作者](https://github.com/y-g-jiang/Support_Me_QR_Code)
 
